@@ -91,7 +91,7 @@ void ABloxGrid::Initalize()
 void ABloxGrid::LoadLevel(FString LevelToLoad, bool IsPreview)
 {
 	// Read data from file
-	FString RelativePath = FPaths::ProjectContentDir().Append("/Maps/").Append(LevelToLoad);
+	FString RelativePath = FPaths::ProjectContentDir().Append("/Maps/MapFiles/").Append(LevelToLoad);
 	IPlatformFile& FileManager = FPlatformFileManager::Get().GetPlatformFile();
 
 	if (!FileManager.FileExists(*RelativePath))
@@ -245,7 +245,11 @@ void ABloxGrid::LoadLevel(FString LevelToLoad, bool IsPreview)
 			UE_LOG(LogTemp, Warning, TEXT("INVALID RECEIVE TILE INDEX IN LINKS"));
 			return;
 		}
-
+		if (FloorArray[TriggerTileIndex] == nullptr)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("NULL REFERENCE TO LINKED TILE"));
+			return;
+		}
 
 		switch (FloorArray[TriggerTileIndex]->TileType)
 		{
@@ -375,7 +379,7 @@ FVector ABloxGrid::GetPlayerStart()
 
 FVector ABloxGrid::GetTileLocation(int TileIndexIn)
 {
-	if (TileIndexIn < 0 || TileIndexIn >= FloorArray.Num())
+	if (TileIndexIn < 0 || TileIndexIn >= FloorArray.Num() || FloorArray[TileIndexIn] == nullptr)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("GetTileLocation::Invalid Tile Index"));
 		return FVector();
@@ -466,7 +470,7 @@ ABloxGridTile* ABloxGrid::MakeTile(FVector TileLocation, int TileIndex, EBloxTil
 	}
 	NewTile->SetActorScale3D(TileScale);
 	FString TileName = "Floor" + FString::FromInt(TileIndex);
-	NewTile->SetActorLabel(TileName);
+	//NewTile->SetActorLabel(TileName);
 	NewTile->TileIndex = TileIndex;
 	NewTile->TileType = TileType;
 	return NewTile;
@@ -531,6 +535,9 @@ void ABloxGrid::SerializeGrid()
 				break;
 			case EBloxTileType::FALL:
 				TypeChar = 'f';
+				break;
+			case EBloxTileType::SPLIT:
+				TypeChar = 'k';
 				break;
 			default:
 				TypeChar = '*';

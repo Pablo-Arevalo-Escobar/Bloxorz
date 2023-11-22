@@ -20,7 +20,8 @@ static const TArray<EBloxTileType> TypeList
 	EBloxTileType::BRIDGE_RIGHT		,
 	EBloxTileType::BRIDGE_UP		,
 	EBloxTileType::BRIDGE_DOWN		,
-	EBloxTileType::EMPTY
+	EBloxTileType::EMPTY			,
+	EBloxTileType::SPLIT			,
 };
 
 

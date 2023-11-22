@@ -7,6 +7,7 @@
 #include "BloxGrid.h"
 #include "BloxorzGameModeBase.h"
 #include <Kismet/GameplayStatics.h>
+#include "BloxGameInstance.h"
 
 // Sets default values
 ABlox::ABlox()
@@ -189,6 +190,19 @@ void ABlox::BeginPlay()
 	}
 
 	GameModeBase = Cast<ABloxorzGameModeBase>(GetWorld()->GetAuthGameMode());
+	if (GameModeBase)
+	{
+		OnEndTrigger.AddDynamic(GameModeBase, &ABloxorzGameModeBase::OnLevelEnd);
+		OnDeathTrigger.AddDynamic(GameModeBase, &ABloxorzGameModeBase::OnDeath);
+	}
+	// Get a reference to the game instance
+	UBloxGameInstance* BloxGameInstance = Cast<UBloxGameInstance>(UGameplayStatics::GetGameInstance(GetWorld()));
+	if (BloxGameInstance)
+	{
+		OnMoveTrigger.AddDynamic(BloxGameInstance, &UBloxGameInstance::IncrementMoveDelta);
+	}
+
+	BehaviourState = DEFAULT_STATE;
 	SetActorTickEnabled(false);
 }
 
@@ -213,6 +227,10 @@ void ABlox::Tick(float DeltaTime)
 		break;
 	case END_STATE:
 		ProcessEnd();
+		break;
+	case DEAD_STATE:
+		OnDeathTrigger.Broadcast();
+		SetActorTickEnabled(false);
 		break;
 	default:
 		UE_LOG(LogTemp, Warning, TEXT("DEFAULT"));
@@ -317,6 +335,9 @@ void ABlox::Move(const FInputActionValue& Value)
 	EndLocation = NewLocation;
 	PlayMoveSound(State);
 	SetActorTickEnabled(true);
+	
+	// Call blueprint event to increment global move counter
+	OnMoveTrigger.Broadcast();
 }
 
 
@@ -499,6 +520,7 @@ void ABlox::PostMove()
 		{
 			RectangleMesh->SetSimulatePhysics(true);
 			IsValid = false;
+			BehaviourState = DEAD_STATE;
 			return;
 		}
 		//DrawDebugLine(GetWorld(), TraceStartLocation, TraceEndLocation, FColor::Red, true);
@@ -513,6 +535,7 @@ void ABlox::PostMove()
 		{
 			UE_LOG(LogTemp, Warning, TEXT("BLOX RIGHT"));
 			GameModeBase->MergeSplitBlox(BloxMoveDirection::BLOX_DOWN);
+			SetActorTickEnabled(false);
 			return;
 		}
 
@@ -524,6 +547,7 @@ void ABlox::PostMove()
 		{
 			UE_LOG(LogTemp, Warning, TEXT("BLOX LEFT"));
 			GameModeBase->MergeSplitBlox(BloxMoveDirection::BLOX_UP);
+			SetActorTickEnabled(false);
 			return;
 		}
 
@@ -535,6 +559,7 @@ void ABlox::PostMove()
 		{
 			UE_LOG(LogTemp, Warning, TEXT("BLOX UP"));
 			GameModeBase->MergeSplitBlox(BloxMoveDirection::BLOX_RIGHT);
+			SetActorTickEnabled(false);
 			return;
 		}
 
@@ -546,6 +571,7 @@ void ABlox::PostMove()
 		{
 			UE_LOG(LogTemp, Warning, TEXT("BLOX DOWN"));
 			GameModeBase->MergeSplitBlox(BloxMoveDirection::BLOX_LEFT);
+			SetActorTickEnabled(false);
 			return;
 		}
 
@@ -557,6 +583,7 @@ void ABlox::PostMove()
 		{
 			RectangleMesh->SetSimulatePhysics(true);
 			IsValid = false;
+			BehaviourState = DEAD_STATE;
 		}
 		//DrawDebugLine(GetWorld(), TraceStartLocation, TraceEndLocation, FColor::Red,true);
 		break;
@@ -571,6 +598,7 @@ void ABlox::PostMove()
 		{
 			RectangleMesh->SetSimulatePhysics(true);
 			IsValid = false;
+			BehaviourState = DEAD_STATE;
 		}
 		//DrawDebugLine(GetWorld(), TraceStartLocation, TraceEndLocation, FColor::Green, true);
 		break;
@@ -585,6 +613,7 @@ void ABlox::PostMove()
 		{
 			RectangleMesh->SetSimulatePhysics(true);
 			IsValid = false;
+			BehaviourState = DEAD_STATE;
 		}
 		//DrawDebugLine(GetWorld(), TraceStartLocation, TraceEndLocation, FColor::Blue, true);
 		break;
@@ -622,7 +651,7 @@ void ABlox::ProcessFall()
 	if (AnimationTimePassed > AnimationLength)
 	{
 		RectangleMesh->SetSimulatePhysics(true);
-		SetActorTickEnabled(false);
+		BehaviourState = DEAD_STATE;
 		return;
 	}
 }
@@ -681,6 +710,8 @@ void ABlox::ProcessEnd()
 		BehaviourState = BloxBehaviour::DEFAULT_STATE;
 		RectangleMesh->SetVisibility(false);
 		SetActorTickEnabled(false);
+		// Call blueprint event to trigger level transition
+		OnEndTrigger.Broadcast();
 	}
 }
 

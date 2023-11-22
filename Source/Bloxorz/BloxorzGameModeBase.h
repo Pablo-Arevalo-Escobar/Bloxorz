@@ -25,7 +25,10 @@ public:
 	virtual void PostLogin(APlayerController* NewPlayer) override;
     void SwitchBloxPawn();
 	void MergeSplitBlox(BloxMoveDirection MoveDirection);
-	
+	UFUNCTION(BlueprintImplementableEvent)
+	void OnLevelEnd();
+	UFUNCTION(BlueprintImplementableEvent)
+	void OnDeath();
 	// UFUNCTION macro required for functions subscribed to delegates
 	UFUNCTION()
 	void SplitBloxPawn(ABloxGridTile* GridTile);
@@ -37,12 +40,14 @@ protected:
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
 	TSubclassOf<ABlox> DoubleBlox;
+	
+
+
 private:
 	AActor* LevelCamera;
 	ABlox* StandardBlox;
 	ABloxGrid* Grid;
     ABlox* BloxSplit0;
     ABlox* BloxSplit1;
-    int32 NumberOfMoves;
 	bool bPosses1;
 };

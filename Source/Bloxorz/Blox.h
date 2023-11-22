@@ -28,7 +28,8 @@ enum BloxBehaviour
 	HIGHLIGHT_STATE UMETA(DisplayName = "HighlightMode"),
 	START_STATE	UMETA(DisplayName = "StartState"),
 	FALL_STATE UMETA(DisplayName = "FallState"),
-	END_STATE UMETA(DisplayName  "EndState")
+	END_STATE UMETA(DisplayName  "EndState"),
+	DEAD_STATE UMETA(DisplayName = "DeadState")
 };
 
 enum BloxMoveDirection
@@ -38,6 +39,13 @@ enum BloxMoveDirection
 	BLOX_UP		UMETA(DisplayName = "UP"),
 	BLOX_DOWN	UMETA(DisplayName = "DOWN")
 };
+
+UDELEGATE()
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnMoveTrigger);
+UDELEGATE()
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnEndTrigger);
+UDELEGATE()
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnDeathTrigger);
 
 UCLASS()
 class BLOXORZ_API ABlox : public APawn
@@ -62,6 +70,12 @@ public:
 
 	BloxState GetBloxState();
 	void SetBloxState(BloxState NewState);
+
+	// Blueprint events used for level transitions
+	UFUNCTION(BlueprintImplementableEvent)
+	void OnMove();
+	UFUNCTION(BlueprintImplementableEvent)
+	void OnEnd();
 
 	UFUNCTION()
 	void StartEndAnimation(ABloxGridTile* Tile);
@@ -123,6 +137,12 @@ protected:
 	float AnimationLength = 0.25f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float EndAnimationLength = 2.0f;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	FOnMoveTrigger OnMoveTrigger;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	FOnEndTrigger OnEndTrigger;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	FOnDeathTrigger OnDeathTrigger;
 
 	float StartHeight = 1000;
 	float GroundLevel = 0.0f;

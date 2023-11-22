@@ -1,7 +1,6 @@
 // Fill out your copyright notice in the Description page of Project Settings.
-
-#include "Blox.h"
 #include "BloxGridTile.h"
+#include "Blox.h"
 
 // Sets default values
 ABloxGridTile::ABloxGridTile()

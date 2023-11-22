@@ -1,7 +1,6 @@
 // Fill out your copyright notice in the Description page of Project Settings.
-
-#include "Blox.h"
 #include "SplitTile.h"
+#include "Blox.h"
 
 void ASplitTile::Trigger(ABlox* BloxActor)
 {
