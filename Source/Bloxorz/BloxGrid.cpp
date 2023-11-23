@@ -319,6 +319,7 @@ void ABloxGrid::PlayStartAnimation()
 void ABloxGrid::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+	UE_LOG(LogTemp, Warning, TEXT("Grid actor tick enabled"));
 	if (!InAnimation)
 	{
 		this->SetActorTickEnabled(false);

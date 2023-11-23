@@ -32,7 +32,7 @@ void ABloxGridTile::LinkReceived(ABloxGridTile* TriggerTile)
 void ABloxGridTile::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
+	UE_LOG(LogTemp, Warning, TEXT("Tile actor tick enabled"));
 }
 
 void ABloxGridTile::HighlightTile(bool bToHighlight)
