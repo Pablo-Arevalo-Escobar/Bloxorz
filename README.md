@@ -17,6 +17,16 @@ The game is made using Unreal Engine, the programming is done almost entirely in
 
 https://github.com/Pablo-Arevalo-Escobar/Bloxorz/assets/63361048/37236d8a-9e62-4840-995d-06bab127583f
 
+
+
+https://github.com/Pablo-Arevalo-Escobar/Bloxorz/assets/63361048/bb1679ac-1ba1-4b85-b69b-e55a759f361e
+
+
+
+
+https://github.com/Pablo-Arevalo-Escobar/Bloxorz/assets/63361048/2ceb929c-1ccd-49fa-aaac-f9d95cc4fb99
+
+
 ### Level Editor Footage
 
 https://github.com/Pablo-Arevalo-Escobar/Bloxorz/assets/63361048/8e2c1627-5d69-4e8c-8eb3-275ebb07f7f4
