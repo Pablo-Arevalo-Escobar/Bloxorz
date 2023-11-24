@@ -13,19 +13,22 @@ The game is made using Unreal Engine, the programming is done almost entirely in
 
 ## Videos
 
-https://github.com/Pablo-Arevalo-Escobar/Bloxorz/assets/63361048/a5530b36-3889-444c-bd97-18cd28c34b30
+https://github.com/Pablo-Arevalo-Escobar/Bloxorz/assets/63361048/37236d8a-9e62-4840-995d-06bab127583f
 
 
 
 ## Images
 
 ### Level Examples
-![BloxSplash](https://github.com/Pablo-Arevalo-Escobar/Bloxorz/assets/63361048/3666317b-c4e4-4edd-b690-fbdc2ef50718)
 
-![BoxSplash2](https://github.com/Pablo-Arevalo-Escobar/Bloxorz/assets/63361048/2b7da715-58c5-47d0-9ce7-b72cdf846c93)
+![BloxSplash](https://github.com/Pablo-Arevalo-Escobar/Bloxorz/assets/63361048/938df394-d516-4d10-a065-95dfa4d4aaa0)
+
+![BoxSplash2](https://github.com/Pablo-Arevalo-Escobar/Bloxorz/assets/63361048/a537541d-39fd-40d9-9731-2c89e095232a)
 
 ### SFX
-![BloxLighting](https://github.com/Pablo-Arevalo-Escobar/Bloxorz/assets/63361048/41e30ae3-c7f5-4f94-926c-78ff8b3af210)
+
+![BloxLighting](https://github.com/Pablo-Arevalo-Escobar/Bloxorz/assets/63361048/10e15b0b-0f12-4d81-8024-08c27383cecc)
+
 
 ## Controls
 Movement:
