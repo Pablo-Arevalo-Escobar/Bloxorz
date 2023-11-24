@@ -9,11 +9,13 @@ The game is made using Unreal Engine, the programming is done almost entirely in
 
 - [Controls](#controls)
 
-- [Rules](#images)
+- [Rules](#rules)
 
 ## Videos
 
 https://github.com/Pablo-Arevalo-Escobar/Bloxorz/assets/63361048/a5530b36-3889-444c-bd97-18cd28c34b30
+
+
 
 ## Images
 
