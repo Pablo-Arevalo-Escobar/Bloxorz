@@ -27,6 +27,12 @@ https://github.com/Pablo-Arevalo-Escobar/Bloxorz/assets/63361048/bb1679ac-1ba1-4
 https://github.com/Pablo-Arevalo-Escobar/Bloxorz/assets/63361048/2ceb929c-1ccd-49fa-aaac-f9d95cc4fb99
 
 
+
+
+https://github.com/Pablo-Arevalo-Escobar/Bloxorz/assets/63361048/30a90905-79e0-418d-bc82-54e21d781167
+
+
+
 ### Level Editor Footage
 
 https://github.com/Pablo-Arevalo-Escobar/Bloxorz/assets/63361048/8e2c1627-5d69-4e8c-8eb3-275ebb07f7f4
