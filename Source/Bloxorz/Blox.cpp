@@ -290,7 +290,6 @@ void ABlox::BeginPlay()
 void ABlox::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	UE_LOG(LogTemp, Warning, TEXT("In Blox Tick"));
 	switch (BehaviourState)
 	{
 	case START_STATE:

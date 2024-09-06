@@ -26,7 +26,10 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 	virtual void OnConstruction(const FTransform& Transform) override;
+	UFUNCTION(CallInEditor, Category = "BloxGrid")
+	void Reconstruct();
 	void Initalize();
+	UFUNCTION(BlueprintCallable)
 	void LoadLevel(FString Level, bool IsPreview);
 	void LoadEmpty();
 	void PlayStartAnimation();
@@ -35,10 +38,15 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 	bool SwitchTileType(int TileToSwitch, EBloxTileType TileType);
+	
+	EBloxTileType GetTileType(int TileIndex);
 	FVector GetPlayerStart();
 	FVector GetTileLocation(int TileIndexIn);
+	ABloxGridTile* GetTileAtIndex(int TileIndex);
+	void HighlightTileAtIndex(int TileIndex, bool DoHighlight);
+
 	UFUNCTION(BlueprintCallable)
-	void SerializeGrid();
+	void SerializeGrid(TArray<FString>& iLinkStrings, const FString& GridName = TEXT("CustomLevel"));
 	void RegisterBloxPawn(ABlox* BloxPawn);
     UFUNCTION()
     void Resize(int GridResolution);

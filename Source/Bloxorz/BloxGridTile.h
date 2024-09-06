@@ -23,7 +23,9 @@ enum class EBloxTileType : uint8
 	BRIDGE_LEFT UMETA(DisplayName = "BridgeLeftTile"),
 	BRIDGE_RIGHT UMETA(DisplayName = "BridgeRightTile"),
 	BRIDGE_UP UMETA(DisplayName = "BridgeUpTile"),
-	BRIDGE_DOWN UMETA(DisplayName = "BridgeDownTile")
+	BRIDGE_DOWN UMETA(DisplayName = "BridgeDownTile"),
+
+	ENUM_END
 };
 
 UDELEGATE()

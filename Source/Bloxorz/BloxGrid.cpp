@@ -49,6 +49,12 @@ void ABloxGrid::OnConstruction(const FTransform& Transform)
 	LoadLevel(LevelToLoad, true);
 	CreateNew = false;
 }
+void ABloxGrid::Reconstruct()
+{
+	FString LevelToLoad = Level + ".bloxlevel";
+	UE_LOG(LogTemp, Warning, TEXT("Grid Construction"));
+	Initalize();
+}
 void ABloxGrid::Initalize()
 {
 	// Verify that all subclasses are passed in
@@ -78,20 +84,44 @@ void ABloxGrid::Initalize()
 	if (InEditorMode)
 	{
 		LoadEmpty();
+		PlayStartAnimation();
 	}
 	else 
 	{
 		// Load level
-		FString LevelToLoad = Level + ".bloxlevel";
+		FString LevelToLoad = Level;
 		LoadLevel(LevelToLoad, false);
 	}
 	
-	PlayStartAnimation();
 }
 void ABloxGrid::LoadLevel(FString LevelToLoad, bool IsPreview)
 {
+	// Verify that all subclasses are passed in
+	if (!Tile || !EndTile || !ButtonSwitchTile || !CrossSwitchTile || !BridgeTile || !EmptyTile || !FallTile || !StartTile)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("A tile subclass is not initialized"));
+		SetActorTickEnabled(false);
+		return;
+	}
+
+	// Cleanup any tiles created in the editor 
+	TArray<AActor*> Tiles;
+	GetAttachedActors(Tiles);
+	if (!Tiles.IsEmpty())
+	{
+		for (AActor* GridTile : Tiles)
+		{
+			GridTile->Destroy();
+		}
+		Tiles.Empty();
+	}
+	if (!ValidFloors.IsEmpty())
+	{
+		ValidFloors.Empty();
+	}
+
 	// Read data from file
-	FString RelativePath = FPaths::ProjectContentDir().Append("/Maps/MapFiles/").Append(LevelToLoad);
+	FString RelativePath = FPaths::ProjectContentDir().Append("/Maps/MapFiles/").Append(LevelToLoad).Append(".bloxlevel");
 	IPlatformFile& FileManager = FPlatformFileManager::Get().GetPlatformFile();
 
 	if (!FileManager.FileExists(*RelativePath))
@@ -123,8 +153,10 @@ void ABloxGrid::LoadLevel(FString LevelToLoad, bool IsPreview)
 	for (int i = 1; i < GridLines.Num(); ++i)
 	{
 		FString& Line = GridLines[i];
+		if (Line.IsEmpty()) continue;
 		for (int j = 0; j < GridResolution; ++j)
 		{
+			if (j >= Line.Len()) break;
 			int TileIndex = ((i - 1) * GridResolution) + j;
 			if (TileIndex >= NumberOfTiles)
 			{
@@ -202,6 +234,7 @@ void ABloxGrid::LoadLevel(FString LevelToLoad, bool IsPreview)
 	for (int i = 0; i < LinkLines.Num(); ++i)
 	{
 		FString& Line = LinkLines[i];
+		if (Line.IsEmpty()) continue;
 		FString TriggerTileIndexS;
 		FString ReceiveTileIndexS;
 
@@ -257,11 +290,19 @@ void ABloxGrid::LoadLevel(FString LevelToLoad, bool IsPreview)
 			// Set spawn tile index to receive tile index
 			Cast<ASplitTile>(FloorArray[TriggerTileIndex])->SetSpawnTileIndex(ReceiveTileIndex);
 			break;
-		default:
+		
+		case EBloxTileType::BUTTON_SWITCH:
+		case EBloxTileType::CROSS_SWITCH:
 			FloorArray[TriggerTileIndex]->TileTrigger.AddDynamic(FloorArray[ReceiveTileIndex], &ABloxGridTile::LinkReceived);
+            break;
+		default:
+			UE_LOG(LogTemp, Warning, TEXT("Game State: %d %d"), TriggerTileIndex, static_cast<int>(FloorArray[TriggerTileIndex]->TileType));
+			return;
+			//checkNoEntry();
 			break;
 		}
 	}
+	PlayStartAnimation();
 }
 
 void ABloxGrid::LoadEmpty()
@@ -319,7 +360,6 @@ void ABloxGrid::PlayStartAnimation()
 void ABloxGrid::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	UE_LOG(LogTemp, Warning, TEXT("Grid actor tick enabled"));
 	if (!InAnimation)
 	{
 		this->SetActorTickEnabled(false);
@@ -335,7 +375,7 @@ void ABloxGrid::Tick(float DeltaTime)
 	}
 	for (int Index : ValidFloors)
 	{
-		if (Index >= FloorArray.Num()) continue;
+		if (Index >= FloorArray.Num() || !FloorZOffset.Contains(Index)) continue;
 		if (FloorArray[Index] == nullptr) continue;
 		FVector FloorLocation = FloorArray[Index]->GetActorLocation();
 		float Alpha = ((GetWorld()->TimeSeconds - AnimationStartTime) / AnimationLength);
@@ -368,6 +408,22 @@ bool ABloxGrid::SwitchTileType(int TileToSwitch, EBloxTileType TileType)
 	return FloorArray[TileToSwitch] ? true : false;
 }
 
+EBloxTileType ABloxGrid::GetTileType(int TileIndex)
+{
+	if (TileIndex < 0 || TileIndex > FloorArray.Num())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Attempt to switch invalid tile index"));
+		return EBloxTileType::ENUM_END;
+	}
+
+	if (!FloorArray[TileIndex])
+	{
+		UE_LOG(LogTemp, Warning, TEXT("NullTileSpot"));
+		return EBloxTileType::ENUM_END;
+	}
+	return FloorArray[TileIndex]->TileType;
+}
+
 FVector ABloxGrid::GetPlayerStart()
 {
 	if (FloorArray.IsEmpty() || PlayerStartTileIndex == -1 || PlayerStartTileIndex >= FloorArray.Num() || FloorArray[PlayerStartTileIndex] == nullptr)
@@ -386,6 +442,26 @@ FVector ABloxGrid::GetTileLocation(int TileIndexIn)
 		return FVector();
 	}
 	return FloorArray[TileIndexIn]->GetActorLocation();
+}
+
+ABloxGridTile* ABloxGrid::GetTileAtIndex(int TileIndex)
+{
+	if (TileIndex < 0 || TileIndex >= FloorArray.Num())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("GetTileLocation::Invalid Tile Index"));
+		return nullptr;
+	}
+	return FloorArray[TileIndex];
+}
+
+void ABloxGrid::HighlightTileAtIndex(int TileIndex, bool DoHighlight)
+{
+	if (TileIndex < 0 || TileIndex >= FloorArray.Num())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("GetTileLocation::Invalid Tile Index"));
+		return;
+	}
+	FloorArray[TileIndex]->HighlightTile(DoHighlight);
 }
 
 // Tile Factory
@@ -477,7 +553,7 @@ ABloxGridTile* ABloxGrid::MakeTile(FVector TileLocation, int TileIndex, EBloxTil
 	return NewTile;
 }
 
-void ABloxGrid::SerializeGrid()
+void ABloxGrid::SerializeGrid(TArray<FString>& iLinkStrings, const FString& GridName)
 {
 	TArray<FString> SerializedLevel;
 	FString Line = "";
@@ -552,11 +628,16 @@ void ABloxGrid::SerializeGrid()
 		++CurrIndex;
 	}
 
+	for (FString LinkLine: iLinkStrings)
+	{
+		SerializedLevel.Add(LinkLine);
+	}
+
 	UE_LOG(LogTemp, Warning, TEXT("SERIALIZE TO : "));
 	UE_LOG(LogTemp, Warning, TEXT("Serialized Level Output: "));
 
 	// Write data to file
-	FString RelativePath = FPaths::ProjectContentDir().Append("/Maps/MapFiles/").Append("CustomLevel.txt");
+	FString RelativePath = FPaths::ProjectContentDir().Append("/Maps/MapFiles/").Append(*GridName).Append(".bloxlevel");
 	IPlatformFile& FileManager = FPlatformFileManager::Get().GetPlatformFile();
 	bool Saved = FFileHelper::SaveStringArrayToFile(SerializedLevel, *RelativePath);
 	if (!Saved)
@@ -590,7 +671,6 @@ void ABloxGrid::ReadIntoLines(FString FileContent,TArray<FString>& FileLines, TA
 	{
 		if (FileContent[Index] == '\n')
 		{
-			UE_LOG(LogTemp, Warning, TEXT("READING DATA %s"), *Line);
 			if (Line.Contains("Links", ESearchCase::IgnoreCase))
 			{
 				UE_LOG(LogTemp,Warning, TEXT("READING LINKS"));
@@ -604,7 +684,7 @@ void ABloxGrid::ReadIntoLines(FString FileContent,TArray<FString>& FileLines, TA
 				Links.Add(Line);
 				UE_LOG(LogTemp, Warning, TEXT("LINK VALUE : %s"), *Line);
 			}
-			else
+			else if(!Line.IsEmpty())
 			{
 				FileLines.Add(Line);
 				UE_LOG(LogTemp, Warning, TEXT("FILE LINE : %s"), *Line);
@@ -612,7 +692,10 @@ void ABloxGrid::ReadIntoLines(FString FileContent,TArray<FString>& FileLines, TA
 			Line.Empty();
 			continue;
 		}
-		Line.AppendChar(FileContent[Index]);
+		else if (FChar::IsAlnum(FileContent[Index]) || FileContent[Index] == '-' || FileContent[Index] == '*')
+        {
+            Line.AppendChar(FileContent[Index]);
+        }
 	}
 }
 
