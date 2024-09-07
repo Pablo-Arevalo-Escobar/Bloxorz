@@ -6,8 +6,11 @@
 #include "GameFramework/Pawn.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include <Components/SceneCaptureComponent2D.h>
+
 #include "BloxGrid.h"
 #include "EditorWidget.h"
+
 #include "EditorPawn.generated.h"
 
 UENUM()
@@ -92,7 +95,19 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent)
 	void SetCameraLocation(FVector Location);
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "EditorPawn")
+	USceneCaptureComponent2D* SceneCaptureComponent;
+
+	UPROPERTY(EditAnywhere, Category = "EditorPawn")
+	float PreviewTileDistance = 110.0f;
+
+	ABloxGridTile* PreviewTile;
 private:
+	// Editor View
+	FVector PreviewTileLocation;
+	FVector PreviewTileRotation;
+	int sign = 1;
+	// EDITOR STATE FUNCTIONS
 	// LINK STATE VARIABLES
 	// Manage the links between buttons and bridge tiles
 	TMap<int, TSet<int>> LinkMap;

@@ -8,6 +8,8 @@
 #include "Components/CanvasPanel.h"
 #include "Components/SpinBox.h"
 #include "Components/Button.h"
+
+#include "BloxGridTile.h"
 #include "EditorWidget.generated.h"
 
 /**

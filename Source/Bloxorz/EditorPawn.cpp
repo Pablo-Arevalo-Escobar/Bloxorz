@@ -28,6 +28,8 @@ AEditorPawn::AEditorPawn()
 {
  	// Set this pawn to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
+	SceneCaptureComponent = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("SceneCaptureComponent"));
+	SceneCaptureComponent->SetupAttachment(RootComponent);
 
 }
 
@@ -63,6 +65,15 @@ void AEditorPawn::BeginPlay()
 		return;
 	}
 	ensureMsgf((Grid = Cast<ABloxGrid>(FoundActors[0])) != nullptr, TEXT("EditorPawn::Invalid Grid Reference"));
+
+	if (SceneCaptureComponent)
+	{
+		SceneCaptureComponent->SetAbsolute(true, true, true);
+		SceneCaptureComponent->SetRelativeLocation(FVector(10000, 10000, 0));
+		SceneCaptureComponent->SetRelativeRotation(FRotator(-90, 180, 0));
+
+		PreviewTileLocation = (SceneCaptureComponent->GetForwardVector() * PreviewTileDistance) + SceneCaptureComponent->GetRelativeLocation();
+	}
 
     // INITIALIZE WIDGET
     if(!EditorWidget)
@@ -129,6 +140,26 @@ void AEditorPawn::Tick(float DeltaTime)
 				DrawDebugLine(GetWorld(), StartLocation, EndLocation, LineColor, false, -1, SDPG_Foreground, 5);
 			}
 		}
+    }
+
+	// Rotate preview tile
+	if (PreviewTile)
+	{
+		PreviewTile->SetActorRotation(FRotator(PreviewTileRotation.X, PreviewTileRotation.Y, PreviewTileRotation.Z));
+
+		const float UpperBound = 65.0f;
+		const float LowerBound = 25.0f;
+		if (PreviewTileRotation.X > UpperBound)
+		{
+			PreviewTileRotation.X = UpperBound;
+			sign *= -1;
+		}
+		else if(PreviewTileRotation.X < LowerBound)
+        {
+            PreviewTileRotation.X = LowerBound;
+            sign *= -1;
+        }
+		PreviewTileRotation.X = PreviewTileRotation.X > UpperBound ? LowerBound : PreviewTileRotation.X + (0.05f * sign);
     }
 }
 
@@ -313,11 +344,6 @@ void AEditorPawn::OnDeleteAction(const FInputActionValue& Value)
 void AEditorPawn::SwitchTileType(const FInputActionValue& Value)
 {
 	UE_LOG(LogTemp, Warning, TEXT("Switch Tile"));
-	if (SelectedTileIndex == -1)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("No Valid Tile Selected"));
-		return;
-	}
 	if (!Grid)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Invalid reference to grid"));
@@ -337,6 +363,13 @@ void AEditorPawn::SwitchTileType(const FInputActionValue& Value)
 		TileTypeIndex = TypeList.Num() - 1;
 	}
 	Widget->TileTypeUsing->SetSelectedIndex(TileTypeIndex);
+	if (PreviewTile)
+	{
+        PreviewTile->Destroy();
+    }
+	PreviewTileLocation = (SceneCaptureComponent->GetForwardVector() * PreviewTileDistance) + SceneCaptureComponent->GetRelativeLocation();
+	PreviewTile = Grid->MakeTile(TypeList[TileTypeIndex]);
+	PreviewTile->SetActorLocation(PreviewTileLocation);
 
 #if WITH_EDITOR
 	// Get the enum class pointer

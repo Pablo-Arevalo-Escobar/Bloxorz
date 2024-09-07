@@ -39,6 +39,7 @@ public:
 	virtual void Tick(float DeltaTime) override;
 	bool SwitchTileType(int TileToSwitch, EBloxTileType TileType);
 	
+	ABloxGridTile* MakeTile(EBloxTileType TileType);
 	EBloxTileType GetTileType(int TileIndex);
 	FVector GetPlayerStart();
 	FVector GetTileLocation(int TileIndexIn);
@@ -53,7 +54,7 @@ public:
 
     void Fill(EBloxTileType TypeToFill);
 private:
-	ABloxGridTile* MakeTile(FVector TileRelativeLocation, int TileIndex, EBloxTileType TileType, bool bUseRelative);
+	ABloxGridTile* MakeTileInternal(FVector TileRelativeLocation, int TileIndex, EBloxTileType TileType, bool bUseRelative);
 private:
 	void ReadIntoLines(FString FileContent, TArray<FString>& FileLines, TArray<FString>& Links);
 

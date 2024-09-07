@@ -170,28 +170,28 @@ void ABloxGrid::LoadLevel(FString LevelToLoad, bool IsPreview)
 			switch(Line[j])
 			{
 			case 's':
-				FloorArray[TileIndex] = MakeTile(TileRelativeLocation, TileIndex, EBloxTileType::STANDARD, true);
+				FloorArray[TileIndex] = MakeTileInternal(TileRelativeLocation, TileIndex, EBloxTileType::STANDARD, true);
 				ValidFloors.Add(TileIndex);
 				break;
 			case 'b':
-				FloorArray[TileIndex] = MakeTile(TileRelativeLocation, TileIndex, EBloxTileType::START, true);
+				FloorArray[TileIndex] = MakeTileInternal(TileRelativeLocation, TileIndex, EBloxTileType::START, true);
 				PlayerStartTileIndex = TileIndex;
 				ValidFloors.Add(TileIndex);
 				break;
 			case 'h':
-				FloorArray[TileIndex] = MakeTile(TileRelativeLocation, TileIndex, EBloxTileType::END, true);
+				FloorArray[TileIndex] = MakeTileInternal(TileRelativeLocation, TileIndex, EBloxTileType::END, true);
 				ValidFloors.Add(TileIndex);
 				break;
 			case 'q':
-				FloorArray[TileIndex] = MakeTile(TileRelativeLocation, TileIndex, EBloxTileType::BUTTON_SWITCH, true);
+				FloorArray[TileIndex] = MakeTileInternal(TileRelativeLocation, TileIndex, EBloxTileType::BUTTON_SWITCH, true);
 				ValidFloors.Add(TileIndex);
 				break;
 			case 'e':
-				FloorArray[TileIndex] = MakeTile(TileRelativeLocation, TileIndex, EBloxTileType::CROSS_SWITCH, true);
+				FloorArray[TileIndex] = MakeTileInternal(TileRelativeLocation, TileIndex, EBloxTileType::CROSS_SWITCH, true);
 				ValidFloors.Add(TileIndex);
 				break;
 			case 'f':
-				FloorArray[TileIndex] = MakeTile(TileRelativeLocation, TileIndex, EBloxTileType::FALL, true);
+				FloorArray[TileIndex] = MakeTileInternal(TileRelativeLocation, TileIndex, EBloxTileType::FALL, true);
 				ValidFloors.Add(TileIndex);
 				break;
 			case  '*':
@@ -199,29 +199,29 @@ void ABloxGrid::LoadLevel(FString LevelToLoad, bool IsPreview)
 				// In game the pointers are left null
 				if (InEditorMode)
 				{
-					FloorArray[TileIndex] = MakeTile(TileRelativeLocation, TileIndex, EBloxTileType::EMPTY, true);
+					FloorArray[TileIndex] = MakeTileInternal(TileRelativeLocation, TileIndex, EBloxTileType::EMPTY, true);
 					ValidFloors.Add(TileIndex);
 				}
 				break;
 			// Bridge type tiles
 			case 'i':
-				FloorArray[TileIndex] = MakeTile(TileRelativeLocation, TileIndex, EBloxTileType::BRIDGE_LEFT, true);
+				FloorArray[TileIndex] = MakeTileInternal(TileRelativeLocation, TileIndex, EBloxTileType::BRIDGE_LEFT, true);
 				ValidFloors.Add(TileIndex);
 				break;
 			case 'p':
-				FloorArray[TileIndex] = MakeTile(TileRelativeLocation, TileIndex, EBloxTileType::BRIDGE_RIGHT, true);
+				FloorArray[TileIndex] = MakeTileInternal(TileRelativeLocation, TileIndex, EBloxTileType::BRIDGE_RIGHT, true);
 				ValidFloors.Add(TileIndex);
 				break;
 			case 'o':
-				FloorArray[TileIndex] = MakeTile(TileRelativeLocation, TileIndex, EBloxTileType::BRIDGE_UP, true);
+				FloorArray[TileIndex] = MakeTileInternal(TileRelativeLocation, TileIndex, EBloxTileType::BRIDGE_UP, true);
 				ValidFloors.Add(TileIndex);
 				break;
 			case 'l':
-				FloorArray[TileIndex] = MakeTile(TileRelativeLocation, TileIndex, EBloxTileType::BRIDGE_DOWN, true);
+				FloorArray[TileIndex] = MakeTileInternal(TileRelativeLocation, TileIndex, EBloxTileType::BRIDGE_DOWN, true);
 				ValidFloors.Add(TileIndex);
 				break;
             case 'k':
-                FloorArray[TileIndex] = MakeTile(TileRelativeLocation, TileIndex, EBloxTileType::SPLIT, true);
+                FloorArray[TileIndex] = MakeTileInternal(TileRelativeLocation, TileIndex, EBloxTileType::SPLIT, true);
                 ValidFloors.Add(TileIndex);
 			default:
 				break;
@@ -323,7 +323,7 @@ void ABloxGrid::LoadEmpty()
 				break;
 			}
 			FVector TileRelativeLocation = GridStart + FVector((GridCellSize * i), -(GridCellSize * j), 0.f);
-			FloorArray[TileIndex] = MakeTile(TileRelativeLocation, TileIndex, EBloxTileType::EMPTY, true);
+			FloorArray[TileIndex] = MakeTileInternal(TileRelativeLocation, TileIndex, EBloxTileType::EMPTY, true);
 			ValidFloors.Add(TileIndex);
 		}
 	}
@@ -404,8 +404,56 @@ bool ABloxGrid::SwitchTileType(int TileToSwitch, EBloxTileType TileType)
 
 	FVector Location = FloorArray[TileToSwitch]->GetActorLocation();
 	FloorArray[TileToSwitch]->Destroy();
-	FloorArray[TileToSwitch] = MakeTile(Location, TileToSwitch, TileType, false);
+	FloorArray[TileToSwitch] = MakeTileInternal(Location, TileToSwitch, TileType, false);
 	return FloorArray[TileToSwitch] ? true : false;
+}
+
+ABloxGridTile* ABloxGrid::MakeTile(EBloxTileType TileType)
+{
+	ABloxGridTile* NewTile;
+	switch (TileType)
+	{
+	case EBloxTileType::END:
+		NewTile = Cast<ABloxGridTile>(GetWorld()->SpawnActor(EndTile));
+		break;
+	case EBloxTileType::BUTTON_SWITCH:
+		NewTile = Cast<ABloxGridTile>(GetWorld()->SpawnActor(ButtonSwitchTile));
+		break;
+	case EBloxTileType::CROSS_SWITCH:
+		NewTile = Cast<ABloxGridTile>(GetWorld()->SpawnActor(CrossSwitchTile));
+		break;
+	case EBloxTileType::BRIDGE_LEFT:
+		NewTile = Cast<ABloxGridTile>(GetWorld()->SpawnActor(BridgeTile));
+		Cast<ABridgeTile>(NewTile)->SetDirection(TileType);
+		break;
+	case EBloxTileType::BRIDGE_RIGHT:
+		NewTile = Cast<ABloxGridTile>(GetWorld()->SpawnActor(BridgeTile));
+		Cast<ABridgeTile>(NewTile)->SetDirection(TileType);
+		break;
+	case EBloxTileType::BRIDGE_UP:
+		NewTile = Cast<ABloxGridTile>(GetWorld()->SpawnActor(BridgeTile));
+		Cast<ABridgeTile>(NewTile)->SetDirection(TileType);
+		break;
+	case EBloxTileType::BRIDGE_DOWN:
+		NewTile = Cast<ABloxGridTile>(GetWorld()->SpawnActor(BridgeTile));
+		Cast<ABridgeTile>(NewTile)->SetDirection(TileType);
+		break;
+	case EBloxTileType::EMPTY:
+		NewTile = Cast<ABloxGridTile>(GetWorld()->SpawnActor(EmptyTile));
+		break;
+	case EBloxTileType::FALL:
+		NewTile = Cast<ABloxGridTile>(GetWorld()->SpawnActor(FallTile));
+		break;
+	case EBloxTileType::START:
+		NewTile = Cast<ABloxGridTile>(GetWorld()->SpawnActor(StartTile));
+		break;
+	case EBloxTileType::SPLIT:
+		NewTile = Cast<ABloxGridTile>(GetWorld()->SpawnActor(SplitTile));
+		break;
+	default:
+		NewTile = Cast<ABloxGridTile>(GetWorld()->SpawnActor(Tile));
+	}
+	return NewTile;
 }
 
 EBloxTileType ABloxGrid::GetTileType(int TileIndex)
@@ -465,15 +513,21 @@ void ABloxGrid::HighlightTileAtIndex(int TileIndex, bool DoHighlight)
 }
 
 // Tile Factory
-ABloxGridTile* ABloxGrid::MakeTile(FVector TileLocation, int TileIndex, EBloxTileType TileType, bool bUseRelative)
+ABloxGridTile* ABloxGrid::MakeTileInternal(FVector TileLocation, int TileIndex, EBloxTileType TileType, bool bUseRelative)
 {
 	ABloxGridTile* NewTile;
 	ABlox* Player = nullptr;
 	ABloxorzGameModeBase* GameModeBase = nullptr;
+	NewTile = MakeTile(TileType);
+	if (!NewTile)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Invalid tile subclass"));
+        return nullptr;
+    }
+
 	switch (TileType)
 	{
 	case EBloxTileType::END:
-		NewTile = Cast<ABloxGridTile>(GetWorld()->SpawnActor(EndTile));
 		Player = Cast<ABlox>(UGameplayStatics::GetPlayerPawn(GetWorld(), 0));
 		if (Player)
 		{
@@ -482,39 +536,7 @@ ABloxGridTile* ABloxGrid::MakeTile(FVector TileLocation, int TileIndex, EBloxTil
 			EndTileIndex = TileIndex;
 		}
 		break;
-	case EBloxTileType::BUTTON_SWITCH:
-		NewTile = Cast<ABloxGridTile>(GetWorld()->SpawnActor(ButtonSwitchTile));
-		break;
-	case EBloxTileType::CROSS_SWITCH:
-		NewTile = Cast<ABloxGridTile>(GetWorld()->SpawnActor(CrossSwitchTile));
-		break;
-	case EBloxTileType::BRIDGE_LEFT:
-		NewTile = Cast<ABloxGridTile>(GetWorld()->SpawnActor(BridgeTile));
-		Cast<ABridgeTile>(NewTile)->SetDirection(TileType);
-		break;
-	case EBloxTileType::BRIDGE_RIGHT:
-		NewTile = Cast<ABloxGridTile>(GetWorld()->SpawnActor(BridgeTile));
-		Cast<ABridgeTile>(NewTile)->SetDirection(TileType);
-		break;
-	case EBloxTileType::BRIDGE_UP:
-		NewTile = Cast<ABloxGridTile>(GetWorld()->SpawnActor(BridgeTile));
-		Cast<ABridgeTile>(NewTile)->SetDirection(TileType);
-		break;
-	case EBloxTileType::BRIDGE_DOWN:
-		NewTile = Cast<ABloxGridTile>(GetWorld()->SpawnActor(BridgeTile));
-		Cast<ABridgeTile>(NewTile)->SetDirection(TileType);
-		break;
-	case EBloxTileType::EMPTY:
-		NewTile = Cast<ABloxGridTile>(GetWorld()->SpawnActor(EmptyTile));
-		break;
-	case EBloxTileType::FALL:
-		NewTile = Cast<ABloxGridTile>(GetWorld()->SpawnActor(FallTile));
-		break;
-	case EBloxTileType::START:
-		NewTile = Cast<ABloxGridTile>(GetWorld()->SpawnActor(StartTile));
-		break;
     case EBloxTileType::SPLIT:
-        NewTile = Cast<ABloxGridTile>(GetWorld()->SpawnActor(SplitTile));
 		GameModeBase =Cast<ABloxorzGameModeBase>(GetWorld()->GetAuthGameMode());
 		if (GameModeBase)
 		{
@@ -527,13 +549,7 @@ ABloxGridTile* ABloxGrid::MakeTile(FVector TileLocation, int TileIndex, EBloxTil
 		}
         break;
 	default:
-		NewTile = Cast<ABloxGridTile>(GetWorld()->SpawnActor(Tile));
-	}
-
-	if (!NewTile)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Invalid tile subclass"));
-		return nullptr;
+		break;
 	}
 
 	NewTile->AttachToActor(this, FAttachmentTransformRules::KeepWorldTransform);
