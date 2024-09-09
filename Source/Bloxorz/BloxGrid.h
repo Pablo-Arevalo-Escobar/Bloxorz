@@ -5,7 +5,9 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "BloxGridTile.h"
+
 #include "BloxGrid.generated.h"
+
 UDELEGATE()
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnStartAnimationEndSignature);
 
@@ -16,7 +18,7 @@ UCLASS()
 class BLOXORZ_API ABloxGrid : public AActor
 {
 	GENERATED_BODY()
-	
+	friend class AEditorPawn;
 public:	
 	// Sets default values for this actor's properties
 	ABloxGrid();
@@ -29,10 +31,14 @@ protected:
 	UFUNCTION(CallInEditor, Category = "BloxGrid")
 	void Reconstruct();
 	void Initalize();
+
+	// LEVEL LOADING/SERIALIZATION
 	UFUNCTION(BlueprintCallable)
 	void LoadLevel(FString Level, bool IsPreview);
+	void LoadLevel2(FString iLeveltoLoad);
 	void LoadEmpty();
 	void PlayStartAnimation();
+	void CleanUpGrid();
 
 public:	
 	// Called every frame
@@ -55,6 +61,9 @@ public:
     void Fill(EBloxTileType TypeToFill);
 private:
 	ABloxGridTile* MakeTileInternal(FVector TileRelativeLocation, int TileIndex, EBloxTileType TileType, bool bUseRelative);
+	// Serialization helper functions
+	TArray<EBloxTileType> GetGridTileTypes();
+	int GetGridResolution() {return GridResolution;}
 private:
 	void ReadIntoLines(FString FileContent, TArray<FString>& FileLines, TArray<FString>& Links);
 
@@ -72,7 +81,7 @@ protected:
 	float GridCellSize = 100.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BloxGrid")
-	float GridResolution = 10;
+	int GridResolution = 10;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BloxGrid")
 	bool CreateNew = true;

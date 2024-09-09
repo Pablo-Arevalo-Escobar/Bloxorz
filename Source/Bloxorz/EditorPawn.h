@@ -7,6 +7,7 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include <Components/SceneCaptureComponent2D.h>
+#include <Camera/CameraComponent.h>
 
 #include "BloxGrid.h"
 #include "EditorWidget.h"
@@ -82,6 +83,9 @@ public:
 	void EmptyGrid();
 
 private:
+	void SetCameraLocation(FVector CameraLocation);
+
+	void AddToLinkMap(ABloxGridTile& TileHit); 
 	void VerifyLinkIntegrity();
 	void StopLinkVisualization();
 
@@ -89,24 +93,24 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaTime) override;
+	virtual void PossessedBy(AController* NewController) override;
 
 	void LinkTile(ABloxGridTile& TileHit);
-
-	UFUNCTION(BlueprintImplementableEvent)
-	void SetCameraLocation(FVector Location);
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "EditorPawn")
-	USceneCaptureComponent2D* SceneCaptureComponent;
 
 	UPROPERTY(EditAnywhere, Category = "EditorPawn")
 	float PreviewTileDistance = 110.0f;
 
 	ABloxGridTile* PreviewTile;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "EditorPawn")
+	USceneCaptureComponent2D* SceneCaptureComponent;
 private:
 	// Editor View
+	bool LinkSendTileIsSplit = false;
 	FVector PreviewTileLocation;
 	FVector PreviewTileRotation;
 	int sign = 1;
+
+
 	// EDITOR STATE FUNCTIONS
 	// LINK STATE VARIABLES
 	// Manage the links between buttons and bridge tiles
@@ -114,6 +118,7 @@ private:
 	int LinkSendTileIndex;
 
 	// UNREAL STATE VARIABLES
+	AActor* CameraActor;
 	EEditorState EditorState;
     UEditorWidget* Widget;
 	APlayerController* PlayerController;

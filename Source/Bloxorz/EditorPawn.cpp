@@ -4,7 +4,7 @@
 #include "EditorWidget.h"
 #include "Components/Button.h"
 #include "Kismet/GameplayStatics.h"
-
+#include <BloxFileManager/Public/BloxFileManager.h>
 
 
 // CONSTANTS
@@ -28,14 +28,18 @@ AEditorPawn::AEditorPawn()
 {
  	// Set this pawn to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
+	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
 	SceneCaptureComponent = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("SceneCaptureComponent"));
 	SceneCaptureComponent->SetupAttachment(RootComponent);
-
+	Tags.Add(TEXT("EditorPawn"));
 }
 
 void AEditorPawn::BeginPlay()
 {
 	Super::BeginPlay();
+
+	AutoPossessAI = EAutoPossessAI::Disabled;
+	AutoPossessPlayer = EAutoReceiveInput::Disabled;
 
 	// Initialize state and input info
 	EditorState = EEditorState::EDITING;
@@ -49,10 +53,7 @@ void AEditorPawn::BeginPlay()
 		{
 			Subsystem->AddMappingContext(EditorMappingContext, 0);
 		}
-		PlayerController->SetShowMouseCursor(true);
-		PlayerController->bEnableMouseOverEvents = true;
 	}
-
 
 	// RETRIEVE GRID AND INIT FOR EDITING
 	// NOTE :: Map editor expects a grid to be present in the level
@@ -73,6 +74,20 @@ void AEditorPawn::BeginPlay()
 		SceneCaptureComponent->SetRelativeRotation(FRotator(-90, 180, 0));
 
 		PreviewTileLocation = (SceneCaptureComponent->GetForwardVector() * PreviewTileDistance) + SceneCaptureComponent->GetRelativeLocation();
+	}
+
+	// LOG SIZE OF AACTOR, COMPONENT, BLOXGRIDTILE, BLOXGRID
+	UE_LOG(LogTemp, Warning, TEXT("Size of AActor: %d"), sizeof(AActor));
+	UE_LOG(LogTemp, Warning, TEXT("Size of UActorComponent: %d"), sizeof(UActorComponent));
+	UE_LOG(LogTemp, Warning, TEXT("Size of ABloxGridTile: %d"), sizeof(ABloxGridTile));
+	UE_LOG(LogTemp, Warning, TEXT("Size of ABloxGrid: %d"), sizeof(ABloxGrid));
+
+	// RETRIEVE CAMERA
+	UGameplayStatics::GetAllActorsWithTag(GetWorld(), TEXT("LevelCamera"), FoundActors);
+	if (FoundActors.Num() > 0)
+	{
+		CameraActor = Cast<AActor>(FoundActors[0]);
+		PlayerController->SetViewTarget(CameraActor);
 	}
 
     // INITIALIZE WIDGET
@@ -163,6 +178,21 @@ void AEditorPawn::Tick(float DeltaTime)
     }
 }
 
+void AEditorPawn::PossessedBy(AController* NewController)
+{
+	PlayerController = Cast<APlayerController>(NewController);
+	if (!CameraActor || !NewController) return;
+	
+	TArray<AActor*> FoundActors;
+	UGameplayStatics::GetAllActorsWithTag(GetWorld(), TEXT("LevelCamera"), FoundActors);
+	if (FoundActors.Num() > 0)
+	{
+		CameraActor = Cast<AActor>(FoundActors[0]);
+		PlayerController->SetViewTarget(CameraActor);
+	}
+	UE_LOG(LogTemp, Warning, TEXT("Possessed by EditorPawn"));
+}
+
 // Called to bind functionality to input
 void AEditorPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
@@ -245,26 +275,14 @@ void AEditorPawn::LinkTile(ABloxGridTile& TileHit)
 	switch (TileHit.TileType)
 	{
 		// Store switch tile index
+	case EBloxTileType::SPLIT:
+		LinkSendTileIsSplit = true;
+		AddToLinkMap(TileHit);
+		break;
 	case EBloxTileType::CROSS_SWITCH:
 	case EBloxTileType::BUTTON_SWITCH:
-		// Unhighlight previously selected tiles
-		StopLinkVisualization();
-
-		// Highlight currently selected tiles
-		LinkSendTileIndex = TileHit.TileIndex;
-		TileHit.HighlightTile(true);
-		if (LinkMap.Contains(LinkSendTileIndex))
-        {
-            for (int LinkReceiver : LinkMap[LinkSendTileIndex])
-            {
-                Grid->HighlightTileAtIndex(LinkReceiver, true);
-            }
-        }
-		else
-		{
-			TSet<int> LinkReceiveTileIndex;
-			LinkMap.Add(LinkSendTileIndex, LinkReceiveTileIndex);
-		}
+		LinkSendTileIsSplit = false;
+		AddToLinkMap(TileHit);
 		break;
 
 	// Only allow linking to bridge tiles
@@ -277,14 +295,25 @@ void AEditorPawn::LinkTile(ABloxGridTile& TileHit)
 		if (!LinkMap.Contains(LinkSendTileIndex))
 		{
 			UE_LOG(LogTemp, Warning, TEXT("LinkSendTileIndex not found in LinkMap"));
+			break;
 		}
-		else
-		{
-			LinkMap.Find(LinkSendTileIndex)->Add(TileHit.TileIndex);
-		}
-		TileHit.HighlightTile(true);
 
+		if (LinkMap.Find(LinkSendTileIndex)->Num() >= 2 && LinkSendTileIsSplit)
+		{
+			break;
+		}
+		LinkMap.Find(LinkSendTileIndex)->Add(TileHit.TileIndex);
+		TileHit.HighlightTile(true);
+		
+		break;
+
+	case EBloxTileType::EMPTY:
+	case EBloxTileType::END:
+		break;
 	default:
+		if (!(LinkSendTileIsSplit && LinkMap.Find(LinkSendTileIndex)->Num() < 2) || LinkSendTileIndex == -1 || !LinkMap.Contains(LinkSendTileIndex)) return;
+		LinkMap.Find(LinkSendTileIndex)->Add(TileHit.TileIndex);
+		TileHit.HighlightTile(true);
 		break;
 
 	}
@@ -409,37 +438,14 @@ void AEditorPawn::ChangeEditorMode(const FInputActionValue& Value)
 
 void AEditorPawn::SerializeGrid()
 {
-	TArray<FString> LinkLines;
-	if (!LinkMap.IsEmpty())
-	{
-		LinkLines.Add(TEXT("Links"));
-		for (auto& KeyValPair : LinkMap)
-		{
-			int LinkCaller = KeyValPair.Key;
-			for (int LinkReceiver : KeyValPair.Value)
-			{
-				LinkLines.Add(FString::Printf(TEXT("%d-%d"), LinkCaller, LinkReceiver));
-				UE_LOG(LogTemp, Warning, TEXT("%d-%d"), LinkCaller, LinkReceiver);
-			}
-		}
-	}
+	FBloxGridData wGridData;
+	wGridData.mCameraTransform = SceneCaptureComponent->GetComponentTransform();
+	wGridData.mGridResolution = Grid->GetGridResolution();
+	wGridData.mGridTiles = Grid->GetGridTileTypes();
+	wGridData.mLinkMap = LinkMap;
+	wGridData.mGridName = "CustomLevel";
 
-	Grid->SerializeGrid(LinkLines);
-#if WITH_EDITOR
-	if (LinkMap.IsEmpty())
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Serialize LinkMap IsEmpty"));
-		return;
-	}
-	for (auto& KeyValPair : LinkMap)
-	{
-		int LinkCaller  = KeyValPair.Key;
-		for (int LinkReceiver : KeyValPair.Value)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("%d-%d"), LinkCaller, LinkReceiver);
-		}
-	}
-#endif
+	BloxFileManager::Serialize(wGridData);
 }
 
 FString AEditorPawn::GetSelectedTile()
@@ -461,7 +467,7 @@ void AEditorPawn::ResizeGrid()
 	
 	// Update camera location
 	FVector CameraLocation = Grid->GetActorLocation() + (FVector::UpVector * Widget->ResolutionSpinBox->GetValue() * 150) + (FVector::RightVector * Widget->ResolutionSpinBox->GetValue() * 50);
-	SetCameraLocation(CameraLocation);
+	if (CameraActor) CameraActor->SetActorLocation(CameraLocation);
 }
 
 void AEditorPawn::FillGrid()
@@ -487,12 +493,37 @@ void AEditorPawn::EmptyGrid()
     Grid->Fill(EBloxTileType::EMPTY);
 }
 
+void AEditorPawn::AddToLinkMap(ABloxGridTile& TileHit)
+{
+	// Unhighlight previously selected tiles
+	StopLinkVisualization();
+
+	// Highlight currently selected tiles
+	LinkSendTileIndex = TileHit.TileIndex;
+	TileHit.HighlightTile(true);
+	if (LinkMap.Contains(LinkSendTileIndex))
+	{
+		for (int LinkReceiver : LinkMap[LinkSendTileIndex])
+		{
+			Grid->HighlightTileAtIndex(LinkReceiver, true);
+		}
+	}
+	else
+	{
+		TSet<int> LinkReceiveTileIndex;
+		LinkMap.Add(LinkSendTileIndex, LinkReceiveTileIndex);
+	}
+}
+
 void AEditorPawn::VerifyLinkIntegrity()
 {
 	// Unhighlight previously selected tiles
 	for (auto& KeyValPair : LinkMap)
 	{
-		bool IsValidSendTile = Grid->GetTileType(KeyValPair.Key) == EBloxTileType::BUTTON_SWITCH || Grid->GetTileType(KeyValPair.Key) == EBloxTileType::CROSS_SWITCH;
+		bool IsValidSendTile = Grid->GetTileType(KeyValPair.Key) == EBloxTileType::BUTTON_SWITCH
+			|| Grid->GetTileType(KeyValPair.Key) == EBloxTileType::CROSS_SWITCH
+			|| Grid->GetTileType(KeyValPair.Key) == EBloxTileType::SPLIT;
+
 		if (!IsValidSendTile)
 		{
 			Grid->HighlightTileAtIndex(KeyValPair.Key, false);
@@ -501,8 +532,7 @@ void AEditorPawn::VerifyLinkIntegrity()
 		}
 		for (int LinkReceiver : KeyValPair.Value)
 		{
-			bool IsValidReceiveTile = Grid->GetTileType(LinkReceiver) == EBloxTileType::BRIDGE_LEFT || Grid->GetTileType(LinkReceiver) == EBloxTileType::BRIDGE_RIGHT
-                || Grid->GetTileType(LinkReceiver) == EBloxTileType::BRIDGE_UP || Grid->GetTileType(LinkReceiver) == EBloxTileType::BRIDGE_DOWN;
+			bool IsValidReceiveTile = Grid->GetTileType(LinkReceiver) != EBloxTileType::END || Grid->GetTileType(LinkReceiver) == EBloxTileType::EMPTY;
 			if (!IsValidReceiveTile)
 			{
 				Grid->HighlightTileAtIndex(LinkReceiver, false);

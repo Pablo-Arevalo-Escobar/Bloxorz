@@ -8,6 +8,9 @@
 #include "SplitTile.h"
 #include "BloxorzGameModeBase.h"
 
+#include <BloxFileManager/Public/BloxFileManager.h>
+
+
 // Sets default values
 ABloxGrid::ABloxGrid()
 {
@@ -25,9 +28,10 @@ ABloxGrid::~ABloxGrid()
 void ABloxGrid::BeginPlay()
 {
 	Super::BeginPlay();
-	if (!LoadOnStart)
-		return;
+	//if (!LoadOnStart)
+	//	return;
 	Initalize();
+	PlayStartAnimation();
 }
 
 void ABloxGrid::OnConstruction(const FTransform& Transform)
@@ -46,7 +50,7 @@ void ABloxGrid::OnConstruction(const FTransform& Transform)
 	}
 	FString LevelToLoad = Level + ".bloxlevel";
 	UE_LOG(LogTemp, Warning, TEXT("Grid Construction"));
-	LoadLevel(LevelToLoad, true);
+	LoadLevel2(LevelToLoad);
 	CreateNew = false;
 }
 void ABloxGrid::Reconstruct()
@@ -90,12 +94,83 @@ void ABloxGrid::Initalize()
 	{
 		// Load level
 		FString LevelToLoad = Level;
-		LoadLevel(LevelToLoad, false);
+		LoadLevel2(LevelToLoad);
 	}
 	
 }
+
+void ABloxGrid::LoadLevel2(FString iLevelToLoad)
+{
+	bool wIsValidGridSetup = !Tile || !EndTile || !ButtonSwitchTile || !CrossSwitchTile || !BridgeTile || !EmptyTile || !FallTile || !StartTile;
+	if (wIsValidGridSetup)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("A tile subclass is not initialized"));
+		SetActorTickEnabled(false);
+		return;
+	}
+	CleanUpGrid();
+
+	FBloxGridData wGridData = BloxFileManager::Parse(iLevelToLoad);
+	if (wGridData.mGridResolution == -1) {UE_LOG(LogTemp, Error, TEXT("Invalid file format")); return;}
+	if (wGridData.mGridResolution * wGridData.mGridResolution < wGridData.mGridTiles.Num())
+	{
+		UE_LOG(LogTemp, Error, TEXT("Failed to load level. Grid tile size does not match denoted resolution. Res : %d   TileSize %d"), (wGridData.mGridResolution*wGridData.mGridResolution), wGridData.mGridTiles.Num());
+		return;
+	}
+			
+	// CREATE AND LOAD THE TILES INTO THE GRIDS FLOOR ARRAY
+	FVector GridStart(-(GridCellSize * GridResolution) / 2, (GridCellSize * GridResolution) / 2, 0.0f);
+	int NumberOfTiles = wGridData.mGridTiles.Num();
+	FloorArray.Init(nullptr, NumberOfTiles);
+	for (int wIndex = 0; wIndex < wGridData.mGridTiles.Num(); ++wIndex)
+	{
+		int32 col = wIndex % wGridData.mGridResolution;
+		int32 row = wIndex / wGridData.mGridResolution;
+		FVector wTileRelativeLocation = GridStart + FVector((GridCellSize * row), -(GridCellSize * col), 0.f);
+		FloorArray[wIndex] = MakeTileInternal(wTileRelativeLocation, wIndex, wGridData.mGridTiles[wIndex], true);
+		if (FloorArray[wIndex]) ValidFloors.Add(wIndex);
+	}
+
+	// TODO :: INITIALIZE CAMERA POSITION
+
+	// CREATE AND LOAD THE LINKS
+	for (auto& wKeyValue : wGridData.mLinkMap)
+	{
+		int wTriggerTileIndex = wKeyValue.Key;
+		check(wTriggerTileIndex < FloorArray.Num() && wTriggerTileIndex >= 0);
+		for (int wReceiveTileIndex : wKeyValue.Value)
+		{
+			check(wReceiveTileIndex < FloorArray.Num() && wReceiveTileIndex >= 0);
+			if (FloorArray[wTriggerTileIndex] == nullptr)
+			{
+				UE_LOG(LogTemp, Error, TEXT("Trigger tile ptr used for link is null"));
+				return;
+			}
+			switch (FloorArray[wTriggerTileIndex]->TileType)
+			{
+			case EBloxTileType::SPLIT:
+				// Set spawn tile index to receive tile index
+				Cast<ASplitTile>(FloorArray[wTriggerTileIndex])->SetSpawnTileIndex(wReceiveTileIndex);
+				break;
+
+			case EBloxTileType::BUTTON_SWITCH:
+			case EBloxTileType::CROSS_SWITCH:
+				FloorArray[wTriggerTileIndex]->TileTrigger.AddDynamic(FloorArray[wReceiveTileIndex], &ABloxGridTile::LinkReceived);
+				break;
+
+			default:
+				UE_LOG(LogTemp, Warning, TEXT("Invalid Trigger Tile Encountered When Loading Link Map: %d %d"), wTriggerTileIndex, static_cast<int>(FloorArray[wTriggerTileIndex]->TileType));
+				break;
+			}
+		}
+	}
+}
+
 void ABloxGrid::LoadLevel(FString LevelToLoad, bool IsPreview)
 {
+	//BloxFileManager::Parse(LevelToLoad);
+
+
 	// Verify that all subclasses are passed in
 	if (!Tile || !EndTile || !ButtonSwitchTile || !CrossSwitchTile || !BridgeTile || !EmptyTile || !FallTile || !StartTile)
 	{
@@ -356,6 +431,24 @@ void ABloxGrid::PlayStartAnimation()
 	}
 }
 
+void ABloxGrid::CleanUpGrid()
+{
+	TArray<AActor*> Tiles;
+	GetAttachedActors(Tiles);
+	if (!Tiles.IsEmpty())
+	{
+		for (AActor* GridTile : Tiles)
+		{
+			GridTile->Destroy();
+		}
+		Tiles.Empty();
+	}
+	if (!ValidFloors.IsEmpty())
+	{
+		ValidFloors.Empty();
+	}
+}
+
 // Called every frame
 void ABloxGrid::Tick(float DeltaTime)
 {
@@ -515,19 +608,31 @@ void ABloxGrid::HighlightTileAtIndex(int TileIndex, bool DoHighlight)
 // Tile Factory
 ABloxGridTile* ABloxGrid::MakeTileInternal(FVector TileLocation, int TileIndex, EBloxTileType TileType, bool bUseRelative)
 {
-	ABloxGridTile* NewTile;
+	ABloxGridTile* NewTile = nullptr;
 	ABlox* Player = nullptr;
 	ABloxorzGameModeBase* GameModeBase = nullptr;
-	NewTile = MakeTile(TileType);
-	if (!NewTile)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("Invalid tile subclass"));
-        return nullptr;
-    }
+
 
 	switch (TileType)
 	{
+	case EBloxTileType::START:
+		NewTile = MakeTile(TileType);
+		PlayerStartTileIndex = TileIndex;
+		break;
+
+	case EBloxTileType::EMPTY:
+		if (InEditorMode)
+		{
+			NewTile = MakeTile(TileType);
+		}
+		else
+		{
+			return nullptr;
+		}
+		break;
+
 	case EBloxTileType::END:
+		NewTile = MakeTile(TileType);
 		Player = Cast<ABlox>(UGameplayStatics::GetPlayerPawn(GetWorld(), 0));
 		if (Player)
 		{
@@ -536,7 +641,9 @@ ABloxGridTile* ABloxGrid::MakeTileInternal(FVector TileLocation, int TileIndex, 
 			EndTileIndex = TileIndex;
 		}
 		break;
+
     case EBloxTileType::SPLIT:
+		NewTile = MakeTile(TileType);
 		GameModeBase =Cast<ABloxorzGameModeBase>(GetWorld()->GetAuthGameMode());
 		if (GameModeBase)
 		{
@@ -548,8 +655,16 @@ ABloxGridTile* ABloxGrid::MakeTileInternal(FVector TileLocation, int TileIndex, 
 			UE_LOG(LogTemp, Warning, TEXT("NULL GAME INSTANCE CAST"));
 		}
         break;
+
 	default:
+		NewTile = MakeTile(TileType);
 		break;
+	}
+
+	if (!NewTile)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Invalid tile subclass"));
+		return nullptr;
 	}
 
 	NewTile->AttachToActor(this, FAttachmentTransformRules::KeepWorldTransform);
@@ -567,6 +682,23 @@ ABloxGridTile* ABloxGrid::MakeTileInternal(FVector TileLocation, int TileIndex, 
 	NewTile->TileIndex = TileIndex;
 	NewTile->TileType = TileType;
 	return NewTile;
+}
+
+TArray<EBloxTileType> ABloxGrid::GetGridTileTypes()
+{
+	TArray<EBloxTileType> wTileTypes;
+	for (ABloxGridTile* wGridTile : FloorArray)
+    {
+        if (!wGridTile)
+        {
+            wTileTypes.Add(EBloxTileType::EMPTY);
+        }
+        else
+        {
+            wTileTypes.Add(wGridTile->TileType);
+        }
+    }
+	return wTileTypes;
 }
 
 void ABloxGrid::SerializeGrid(TArray<FString>& iLinkStrings, const FString& GridName)
@@ -644,6 +776,10 @@ void ABloxGrid::SerializeGrid(TArray<FString>& iLinkStrings, const FString& Grid
 		++CurrIndex;
 	}
 
+	SerializedLevel.Add(UTF8_TO_TCHAR(BloxFileManager::CAMERA_START_INDICATOR));
+	
+
+	SerializedLevel.Add(UTF8_TO_TCHAR(BloxFileManager::LINK_START_INDICATOR));
 	for (FString LinkLine: iLinkStrings)
 	{
 		SerializedLevel.Add(LinkLine);
