@@ -5,8 +5,6 @@ The game is made using Unreal Engine, the programming is done almost entirely in
 ## Contents:
 - [Videos](#videos)
 
-- [Images](#images)
-
 - [Controls](#controls)
 
 - [Rules](#rules)
@@ -46,20 +44,6 @@ https://github.com/Pablo-Arevalo-Escobar/Bloxorz/assets/63361048/30a90905-79e0-4
 ### Level Editor Footage
 
 https://github.com/Pablo-Arevalo-Escobar/Bloxorz/assets/63361048/8e2c1627-5d69-4e8c-8eb3-275ebb07f7f4
-
-
-## Images
-
-### Level Examples
-
-![BloxSplash](https://github.com/Pablo-Arevalo-Escobar/Bloxorz/assets/63361048/938df394-d516-4d10-a065-95dfa4d4aaa0)
-
-![BoxSplash2](https://github.com/Pablo-Arevalo-Escobar/Bloxorz/assets/63361048/a537541d-39fd-40d9-9731-2c89e095232a)
-
-### SFX
-
-![BloxLighting](https://github.com/Pablo-Arevalo-Escobar/Bloxorz/assets/63361048/10e15b0b-0f12-4d81-8024-08c27383cecc)
-
 
 ## Controls
 Movement:
